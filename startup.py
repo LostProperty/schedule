@@ -2,7 +2,9 @@
 
 import os
 import json
+import time
 import os.path
+import datetime
 import functools
 import subprocess
 
@@ -133,7 +135,64 @@ def describe_scheduled_actions(group_name):
     return call('autoscaling', 'describe-scheduled-actions', **args)
 
 
+def scheduled_instances(instances):
+    reservations = instances['Reservations']
+    instances_ = []
+    for res in reservations:
+        ins = res['Instances']
+        for instance in ins:
+            tags = [t for t in instance['Tags'] if t['Key'] == 'Scheduled']
+            if not tags:
+                continue
+            instances_.append(instance)
+    return instances_
+
+
+def yy(s):
+    tm = time.strptime(s, '%H.%M')
+    # this works while we are only considering time and ignoring dates
+    now = datetime.datetime.utcnow()
+    return now.replace(second=0, microsecond=0, minute=tm.tm_min, hour=tm.tm_hour)
+
+
+def xx(schedule_str):
+    values = [x.split(':')[1] for x in schedule_str.split()]
+    return [yy(c) for c in values]
+
+
+class AWSInstance(object):
+    def __init__(self, instance):
+        self.id = instance['InstanceId']
+        schedule = [t['Value'] for t in instance['Tags'] if t['Key'] == 'Scheduled'][0]
+        self.on, self.off = xx(schedule)
+
+    def __repr__(self):
+        return u'<{} - on:{!r} off:{!r}>'.format(self.id, self.on, self.off)
+
+
+def instance_ids(instances):
+    return [AWSInstance(i) for i in instances]
+
+
 def main():
+
+    with open(join('instances.json')) as fo:
+        instances = list(scheduled_instances(json.load(fo)))
+
+    ids = instance_ids(instances)
+
+    def active_window(now, start, end):
+        return start < now < end
+
+    current = datetime.datetime.utcnow()
+    for id in ids:
+        print "The current window is {}-{}".format(id.on, id.off)
+        if active_window(current, id.on, id.off):
+            print "Instance {} should be running".format(id.id)
+        else:
+            print "Instance {} should be stopped".format(id.id)
+
+    return
 
     # FIXME create an ami from the provisioned instance. This will save us
     # from installing pip, awscli, etc all the time

@@ -16,7 +16,7 @@ setup(
     author='Rob Berry',
     author_email='rob@lostpropertyhq.com',
     url='https://github.com/LostProperty/schedule',
-    py_modules=[
+    packages=[
         'schedule',
     ],
     include_package_data=True,

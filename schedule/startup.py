@@ -2,11 +2,15 @@
 
 import os
 import json
-import time
 import os.path
 import datetime
+import argparse
 import functools
+import itertools
 import subprocess
+
+from schedule import window
+from schedule import args
 
 
 def join(*args):
@@ -17,29 +21,10 @@ def join(*args):
 user_data = 'file://{}'.format(join('scheduler.sh'))
 ami_id = u"ami-f0b11187"
 instance_type = u"t2.micro"
-security_groups = u"SSH"
 region = u"eu-west-1"
 zone = region + "a"
 launch_config = u"scheduler-launch-config"
 auto_scale_group = u"scheduler-auto-scale-group"
-key_name = 'lostproperty'
-
-
-class Quoted(object):
-
-    def __init__(self, st):
-        self.st = st
-
-    def __str__(self):
-        return repr(self.st)
-
-
-class KeyValue(object):
-    def __init__(self, **kwargs):
-        self.key_values = kwargs
-
-    def __repr__(self):
-        return reduce(lambda i, x: '{} {}={}'.format(i, *x), reversed(self.key_values.items()), '')
 
 
 def resource_may_exist(fn):
@@ -56,18 +41,9 @@ def resource_may_exist(fn):
     return inner
 
 
-def underscores_to_dashes(keys):
-    return [key.replace('_', '-') for key in keys]
-
-
-def dict_to_cli_args(di):
-    args = dict(zip(underscores_to_dashes(di.keys()), di.values()))
-    return reduce(lambda i, x: '{} --{} {}'.format(i, *x), reversed(args.items()), '')
-
-
 def cmd(kind, subcommand, **kwargs):
-    args = dict_to_cli_args(kwargs)
-    return u'aws {kind} {sub} {args}'.format(kind=kind, sub=subcommand, args=args)
+    args_ = args.dict_to_cli_args(kwargs)
+    return u'aws {kind} {sub} {args}'.format(kind=kind, sub=subcommand, args=args_)
 
 
 def call(kind, subcommand, **kwargs):
@@ -80,7 +56,7 @@ def call(kind, subcommand, **kwargs):
 
 
 @resource_may_exist
-def create_launch_configuration(name):
+def create_launch_configuration(name, security_groups, ssh_keyname):
     args = {
         'launch_configuration_name': name,
         'output': 'text',
@@ -88,23 +64,22 @@ def create_launch_configuration(name):
         'image_id': ami_id,
         'user_data': user_data,
         'instance_type': instance_type,
-        'key_name': key_name,
+        'key_name': ssh_keyname,
         'iam_instance_profile': 'scheduler',
     }
     return call('autoscaling', 'create-launch-configuration', **args)
 
 
 @resource_may_exist
-def create_auto_scaling_group(launch_config_name, group_name, subnet_id):
+def create_auto_scaling_group(launch_config_name, group_name):
     args = {
         'auto_scaling_group_name': group_name,
         'launch_configuration_name': launch_config_name,
         'output': 'text',
         'availability_zones': zone,
-        # 'vpc_zone_identifier': subnet_id,
         'desired_capacity': 0,
         'min_size': 0,
-        'max_size': 1,
+        'max_size': 0,
     }
     return call('autoscaling', 'create-auto-scaling-group', **args)
 
@@ -135,77 +110,78 @@ def describe_scheduled_actions(group_name):
     return call('autoscaling', 'describe-scheduled-actions', **args)
 
 
-def scheduled_instances(instances):
-    reservations = instances['Reservations']
-    instances_ = []
-    for res in reservations:
-        ins = res['Instances']
-        for instance in ins:
-            tags = [t for t in instance['Tags'] if t['Key'] == 'Scheduled']
-            if not tags:
-                continue
-            instances_.append(instance)
-    return instances_
+def describe_instances():
+    return json.loads(call('ec2', 'describe-instances'))
 
 
-def yy(s):
-    tm = time.strptime(s, '%H.%M')
-    # this works while we are only considering time and ignoring dates
+def describe_instances_from_file(fname=None):
+    fname = fname or join('instances.json')
+    with open(fname) as fo:
+        return json.load(fo)
+
+
+def do_run_check(args):
+    print(run_check())
+
+
+def partition(predicate, iterable):
+    l1, l2 = itertools.tee((predicate(item), item) for item in iterable)
+    return (i for p, i in l1 if p), (i for p, i in l2 if not p)
+
+
+def run_check():
+    ids = list(window.scheduled_instances(describe_instances_from_file()))
     now = datetime.datetime.utcnow()
-    return now.replace(second=0, microsecond=0, minute=tm.tm_min, hour=tm.tm_hour)
+    pred = lambda win: now in win
+    to_start, to_stop = map(list, partition(pred, ids))
+    args = {
+        'dry-run': '',
+        'instance_ids': ' '.join([i.id for i in to_stop]),
+    }
+    if to_stop:
+        stopped = call('ec2', 'stop-instances', **args)
+    else:
+        stopped = 'No instances to stop'
+
+    if to_start:
+        args['instance_ids'] = ' '.join([i.id for i in to_start])
+        started = call('ec2', 'start-instances', **args)
+    else:
+        started = 'No instances to start'
+    return '{}\n{}'.format(started, stopped)
 
 
-def xx(schedule_str):
-    values = [x.split(':')[1] for x in schedule_str.split()]
-    return [yy(c) for c in values]
+def do_start(args):
+    start(security_groups=args.groups, ssh_keyname=args.keyname)
 
 
-class AWSInstance(object):
-    def __init__(self, instance):
-        self.id = instance['InstanceId']
-        schedule = [t['Value'] for t in instance['Tags'] if t['Key'] == 'Scheduled'][0]
-        self.on, self.off = xx(schedule)
-
-    def __repr__(self):
-        return u'<{} - on:{!r} off:{!r}>'.format(self.id, self.on, self.off)
-
-
-def instance_ids(instances):
-    return [AWSInstance(i) for i in instances]
-
-
-def main():
-
-    with open(join('instances.json')) as fo:
-        instances = list(scheduled_instances(json.load(fo)))
-
-    ids = instance_ids(instances)
-
-    def active_window(now, start, end):
-        return start < now < end
-
-    current = datetime.datetime.utcnow()
-    for id in ids:
-        print "The current window is {}-{}".format(id.on, id.off)
-        if active_window(current, id.on, id.off):
-            print "Instance {} should be running".format(id.id)
-        else:
-            print "Instance {} should be stopped".format(id.id)
-
-    return
+def start(security_groups, ssh_keyname):
 
     # FIXME create an ami from the provisioned instance. This will save us
     # from installing pip, awscli, etc all the time
-    print(create_launch_configuration(launch_config))
+    print(create_launch_configuration(launch_config, security_groups, ssh_keyname))
     print(create_auto_scaling_group(launch_config, auto_scale_group, subnet_id='N/a'))
     suspend_processes(auto_scale_group)
-    set_group_size(auto_scale_group, Quoted("Begin downtime check"), size=1,
-                   recurrence=Quoted("0,15,30,45 * * * *"))
-    set_group_size(auto_scale_group, Quoted("Finish downtime check"), size=0,
-                   recurrence=Quoted("10,25,40,55 * * * *"))
+    set_group_size(auto_scale_group, args.Quoted("Begin downtime check"), size=1,
+                   recurrence=args.Quoted("0,15,30,45 * * * *"))
+    set_group_size(auto_scale_group, args.Quoted("Finish downtime check"), size=0,
+                   recurrence=args.Quoted("10,25,40,55 * * * *"))
     print("Add scheduled jobs")
     print(describe_scheduled_actions(auto_scale_group))
 
 
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers(help='sub-command help')
+check_parser = subparsers.add_parser('check',
+                                     help='Check if any running instances should be stopped')
+check_parser.set_defaults(func=do_run_check)
+
+start_parser = subparsers.add_parser('start',
+                                     help='Create auto-scaling group')
+start_parser.set_defaults(func=do_start)
+start_parser.add_argument('--keyname', '-k', action='store', required=True)
+start_parser.add_argument('--groups', '-g', action='store', required=True)
+
 if __name__ == '__main__':
-    main()
+    arguments = parser.parse_args()
+    arguments.func(arguments)

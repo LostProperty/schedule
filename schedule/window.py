@@ -2,20 +2,6 @@ import time
 import datetime
 
 
-def scheduled_instances(instances):
-    """Filter instances where tag.Key == 'Scheduled'"""
-    reservations = instances['Reservations']
-    instances_ = []
-    for res in reservations:
-        ins = res['Instances']
-        for instance in ins:
-            tags = [t for t in instance['Tags'] if t['Key'] == 'Scheduled']
-            if not tags:
-                continue
-            instances_.append(AWSInstance(instance))
-    return instances_
-
-
 def active_window(now, start, end):
     return start < now < end
 

@@ -11,8 +11,8 @@ def partition(predicate, iterable):
     return (i for p, i in l1 if p), (i for p, i in l2 if not p)
 
 
-def describe_instances():
-    return json.loads(call('ec2', 'describe-instances'))
+def describe_instances(region):
+    return json.loads(call('ec2', 'describe-instances', region=region))
 
 
 def describe_instances_from_file(fname=None):
@@ -37,7 +37,7 @@ def scheduled_instances(instances):
 
 def check(region=None):
     region = region or default_region
-    ids = list(scheduled_instances(describe_instances()))
+    ids = list(scheduled_instances(describe_instances(region)))
     now = datetime.datetime.utcnow()
     pred = lambda win: now in win
     to_start, to_stop = map(list, partition(pred, ids))

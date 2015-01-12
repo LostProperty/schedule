@@ -26,7 +26,6 @@ There are two subcommands that do all of the work. The first is ``start``::
 
 
     > python -m schedule.app start --help
-
     usage: app.py start [-h] --keyname KEYNAME --groups GROUPS
 
     optional arguments:
@@ -41,4 +40,19 @@ There are two subcommands that do all of the work. The first is ``start``::
 
 When this is run (by a user with appropriately configure aws/awscli
 permissions) an auto-scaling configuration and group will be created. This
-group.
+group will change the its max + min size from 1 to 0 and then 0 to 1 at certain (for now)
+hardcoded intervals. When the group size changes to 1 a new instance is spun
+up and then installs ``schedule`` so it can run the ``check`` command::
+
+    > python -m schedule.app check --help
+    usage: app.py check [-h] [--region REGION]
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --region REGION, -r REGION
+
+When this is run it will find all instances that have a tag where its ``Name``
+field is ``Scheduled`` and its ``Value`` field is a string in the format
+``on:hh.mm off:hh.mm``. The value format determines the time range during
+which an instance should be running. If the current time is outside of that
+range then the server will be stopped.

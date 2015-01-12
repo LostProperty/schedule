@@ -3,6 +3,7 @@ import datetime
 import itertools
 from schedule.window import AWSInstance
 from schedule.start import call, join
+from schedule.start import region as default_region
 
 
 def partition(predicate, iterable):
@@ -34,20 +35,21 @@ def scheduled_instances(instances):
     return instances_
 
 
-def check():
+def check(region=None):
+    region = region or default_region
     ids = list(scheduled_instances(describe_instances()))
     now = datetime.datetime.utcnow()
     pred = lambda win: now in win
     to_start, to_stop = map(list, partition(pred, ids))
     if to_stop:
         instance_ids = ' '.join([i.id for i in to_stop]),
-        stopped = call('ec2', 'stop-instances', instance_ids=instance_ids)
+        stopped = call('ec2', 'stop-instances', region=region, instance_ids=instance_ids)
     else:
         stopped = 'No instances to stop'
 
     if to_start:
         instance_ids = ' '.join([i.id for i in to_start])
-        started = call('ec2', 'start-instances', instance_ids=instance_ids)
+        started = call('ec2', 'start-instances', region=region, instance_ids=instance_ids)
     else:
         started = 'No instances to start'
     return '{}\n{}'.format(started, stopped)

@@ -4,7 +4,7 @@ from schedule.check import check
 
 
 def do_check(args):
-    print(check())
+    print(check(region=args.region))
 
 
 def do_start(args):
@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers(help='sub-command help')
 check_parser = subparsers.add_parser('check',
                                      help='Check if any running instances should be stopped')
+check_parser.add_argument('--region', '-r', action='store')
 check_parser.set_defaults(func=do_check)
 
 start_parser = subparsers.add_parser('start',

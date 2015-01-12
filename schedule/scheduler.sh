@@ -47,13 +47,13 @@ job using a command like:
 EOM
 
 # check for running instances
-python -m schedule.app check
+python -m schedule.app check --region eu-west-1
 
 # Give the email some time to be queued and delivered
 sleep 300 # 5 minutes
 
 # This will stop the EBS boot instance, stopping the hourly charges.
 # Have Auto Scaling terminate it, stopping the storage charges.
-shutdown -h now
+# shutdown -h now
 
 exit 0

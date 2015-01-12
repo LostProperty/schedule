@@ -113,8 +113,8 @@ def start(security_groups, ssh_keyname):
     print(create_auto_scaling_group(launch_config, auto_scale_group))
     suspend_processes(auto_scale_group)
     set_group_size(auto_scale_group, args.Quoted("Begin downtime check"), size=1,
-                   recurrence=args.Quoted("0,15,30,45 * * * *"))
+                   recurrence=args.Quoted("30 9,20 * * *"))
     set_group_size(auto_scale_group, args.Quoted("Finish downtime check"), size=0,
-                   recurrence=args.Quoted("10,25,40,55 * * * *"))
+                   recurrence=args.Quoted("40 9,20 * * *"))
     print("Add scheduled jobs")
     print(describe_scheduled_actions(auto_scale_group))

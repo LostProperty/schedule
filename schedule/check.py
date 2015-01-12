@@ -1,7 +1,7 @@
 import json
 import datetime
 import itertools
-from schedule.window import AWSInstance
+from schedule.window import AWSInstance, is_running, is_stopped
 from schedule.start import call, join
 from schedule.start import region as default_region
 
@@ -40,7 +40,11 @@ def check(region=None):
     ids = list(scheduled_instances(describe_instances(region)))
     now = datetime.datetime.utcnow()
     pred = lambda win: now in win
-    to_start, to_stop = map(list, partition(pred, ids))
+
+    to_start, to_stop = partition(pred, ids)
+    to_stop = [i for i in to_stop if not is_stopped(i)]
+    to_start = [i for i in to_start if not is_running(i)]
+
     if to_stop:
         instance_ids = ' '.join([i.id for i in to_stop])
         stopped = call('ec2', 'stop-instances', region=region, instance_ids=instance_ids)

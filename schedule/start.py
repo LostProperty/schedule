@@ -72,9 +72,9 @@ def create_auto_scaling_group(launch_config_name, group_name):
         'launch_configuration_name': launch_config_name,
         'output': 'text',
         'availability_zones': zone,
-        'desired_capacity': 0,
-        'min_size': 0,
-        'max_size': 0,
+        'desired_capacity': 1,
+        'min_size': 1,
+        'max_size': 1,
     }
     return call('autoscaling', 'create-auto-scaling-group', **args)
 

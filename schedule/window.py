@@ -18,11 +18,38 @@ def xx(schedule_str):
     return [yy(c) for c in values]
 
 
+def is_running(instance):
+    return instance.state == AWS_INSTANCE_STATES.RUNNING
+
+
+def is_stopped(instance):
+    return instance.state == AWS_INSTANCE_STATES.STOPPED
+
+
+def running_ids(instances):
+    return [instance for instance in instances if is_running(instance)]
+
+
+def stopped_ids(instances):
+    return [instance for instance in instances if is_stopped(instance)]
+
+
+# aws instance states
+class AWS_INSTANCE_STATES:
+    PENDING = [0, 'pending']
+    RUNNING = [16, 'running']
+    SHUTTING = [32, 'shutting-down']
+    TERMINATED = [48, 'terminated']
+    STOPPING = [64, 'stopping']
+    STOPPED = [80, 'stopped']
+
+
 class AWSInstance(object):
     def __init__(self, instance):
         self.id = instance['InstanceId']
         schedule = [t['Value'] for t in instance['Tags'] if t['Key'] == 'Scheduled'][0]
         self.on, self.off = xx(schedule)
+        self.state = instance['State'].values()
 
     def __contains__(self, other):
         return active_window(other, self._on, self._off)

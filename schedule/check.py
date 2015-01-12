@@ -42,7 +42,7 @@ def check(region=None):
     pred = lambda win: now in win
     to_start, to_stop = map(list, partition(pred, ids))
     if to_stop:
-        instance_ids = ' '.join([i.id for i in to_stop]),
+        instance_ids = ' '.join([i.id for i in to_stop])
         stopped = call('ec2', 'stop-instances', region=region, instance_ids=instance_ids)
     else:
         stopped = 'No instances to stop'

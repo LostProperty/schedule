@@ -22,4 +22,5 @@ setup(
     include_package_data=True,
     license="MIT",
     zip_safe=False,
+    install_requires=['awscli'],
 )

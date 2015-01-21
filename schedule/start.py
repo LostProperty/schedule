@@ -4,8 +4,12 @@ import os
 import os.path
 import functools
 import subprocess
-
 from schedule import args
+from schedule import log as logging
+
+
+logger = logging.getLogger(__name__)
+logging.setup_logging()
 
 
 def join(*args):
@@ -109,12 +113,12 @@ def start(security_groups, ssh_keyname):
 
     # FIXME create an ami from the provisioned instance. This will save us
     # from installing pip, awscli, etc all the time
-    print(create_launch_configuration(launch_config, security_groups, ssh_keyname))
-    print(create_auto_scaling_group(launch_config, auto_scale_group))
+    logger.info(create_launch_configuration(launch_config, security_groups, ssh_keyname))
+    logger.info(create_auto_scaling_group(launch_config, auto_scale_group))
     suspend_processes(auto_scale_group)
     set_group_size(auto_scale_group, args.Quoted("Begin downtime check"), size=1,
                    recurrence=args.Quoted("30 9,20 * * *"))
     set_group_size(auto_scale_group, args.Quoted("Finish downtime check"), size=0,
-                   recurrence=args.Quoted("40 9,20 * * *"))
-    print("Add scheduled jobs")
-    print(describe_scheduled_actions(auto_scale_group))
+                   recurrence=args.Quoted("20 10,21 * * *"))
+    logger.info("Add scheduled jobs")
+    logger.info(describe_scheduled_actions(auto_scale_group))

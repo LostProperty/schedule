@@ -56,4 +56,4 @@ def check(region=None):
         started = call('ec2', 'start-instances', region=region, instance_ids=instance_ids)
     else:
         started = 'No instances to start'
-    return '{}\n{}'.format(started, stopped)
+    return '{} | {}'.format(started, stopped)

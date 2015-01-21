@@ -1,14 +1,19 @@
 import argparse
 from schedule.start import start
 from schedule.check import check
+from schedule import log as logging
+
+
+logger = logging.getLogger('schedule.app')
+logging.setup_logging()
 
 
 def do_check(args):
-    print(check(region=args.region))
+    logger.info(check(region=args.region))
 
 
 def do_start(args):
-    print(start(security_groups=args.groups, ssh_keyname=args.keyname))
+    logger.info(start(security_groups=args.groups, ssh_keyname=args.keyname))
 
 
 parser = argparse.ArgumentParser()

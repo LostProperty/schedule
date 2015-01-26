@@ -38,11 +38,12 @@ There are two subcommands that do all of the work. The first is ``start``::
                             instances should belong to
 
 
-When this is run (by a user with appropriately configure aws/awscli
+When this is run (by a user with appropriately configured aws/awscli
 permissions) an auto-scaling configuration and group will be created. This
-group will change the its max + min size from 1 to 0 and then 0 to 1 at certain (for now)
-hardcoded intervals. When the group size changes to 1 a new instance is spun
-up and then installs ``schedule`` so it can run the ``check`` command::
+group will change the its max + min size from 1 to 0 and then 0 to 1 at
+certain (for now) hardcoded intervals. When the group size changes to 1 a new
+instance is spun up and then installs ``schedule`` so it can run the ``check``
+command::
 
     > python -m schedule.app check --help
     usage: app.py check [-h] [--region REGION]

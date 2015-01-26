@@ -55,10 +55,10 @@ The result of running the schedule check is:
 EOM
 
 # Give the email some time to be queued and delivered
-sleep 300 # 5 minutes
+# sleep 300 # 5 minutes
 
 # This will stop the EBS boot instance, stopping the hourly charges.
 # Have Auto Scaling terminate it, stopping the storage charges.
-shutdown -h now
+# shutdown -h now
 
 exit 0

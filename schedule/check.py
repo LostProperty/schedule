@@ -1,7 +1,8 @@
 import json
 import datetime
 import itertools
-from schedule.window import AWSInstance, is_running, is_stopped
+from schedule.window import (is_running, is_stopped,
+                             create_aws_instance_from_tag)
 from schedule.start import call, join
 from schedule.start import region as default_region
 
@@ -11,8 +12,11 @@ def partition(predicate, iterable):
     return (i for p, i in l1 if p), (i for p, i in l2 if not p)
 
 
-def describe_instances(region):
-    return json.loads(call('ec2', 'describe-instances', region=region))
+def describe_instances(region, instance_ids=None):
+    kw = {'region': region}
+    if instance_ids:
+        kw['instance_ids'] = instance_ids
+    return json.loads(call('ec2', 'describe-instances', **kw))
 
 
 def describe_instances_from_file(fname=None):
@@ -21,23 +25,24 @@ def describe_instances_from_file(fname=None):
         return json.load(fo)
 
 
-def scheduled_instances(instances):
+def scheduled_instances(instances, creator=None):
     """Filter instances where tag.Key == 'Scheduled'"""
+    creator = creator or create_aws_instance_from_tag
     reservations = instances['Reservations']
     instances_ = []
     for res in reservations:
         ins = res['Instances']
         for instance in ins:
-            tags = [t for t in instance['Tags'] if t['Key'] == 'Scheduled']
-            if not tags:
-                continue
-            instances_.append(AWSInstance(instance))
+            aws_instance = creator(instance)
+            if aws_instance:
+                instances_.append(aws_instance)
     return instances_
 
 
-def check(region=None):
+def check(region=None, ids=None):
     region = region or default_region
-    ids = list(scheduled_instances(describe_instances(region)))
+    if ids is None:
+        ids = list(scheduled_instances(describe_instances(region)))
     now = datetime.datetime.utcnow()
     pred = lambda win: now in win
 

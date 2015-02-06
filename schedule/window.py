@@ -2,6 +2,14 @@ import time
 import datetime
 
 
+def get_scheduled_tag_value(instance):
+    try:
+        retval = [t['Value'] for t in instance['Tags'] if t['Key'] == 'Scheduled'][0]
+    except IndexError:
+        retval = ''
+    return retval
+
+
 def active_window(now, start, end):
     return start < now < end
 
@@ -44,12 +52,21 @@ class AWS_INSTANCE_STATES:
     STOPPED = [80, 'stopped']
 
 
+def create_aws_instance_from_tag(instance):
+    """Given the json version of an instance, create an AWSInstance wrapper"""
+    schedule = get_scheduled_tag_value(instance)
+    if not schedule:
+        retval = None
+    else:
+        retval = AWSInstance(instance, schedule)
+    return retval
+
+
 class AWSInstance(object):
-    def __init__(self, instance):
+    def __init__(self, instance, schedule):
         self.id = instance['InstanceId']
-        schedule = [t['Value'] for t in instance['Tags'] if t['Key'] == 'Scheduled'][0]
-        self.on, self.off = xx(schedule)
         self.state = instance['State'].values()
+        self.on, self.off = xx(schedule)
 
     def __contains__(self, other):
         return active_window(other, self._on, self._off)

@@ -12,8 +12,8 @@ log_config = {
     },
     'handlers': {
         'default': {
-            'level':'INFO',
-            'class':'logging.StreamHandler',
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
             'formatter': 'standard',
         },
     },

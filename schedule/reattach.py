@@ -18,22 +18,20 @@ def reattach(load_balancer_name, region=default_region):
     # instances because we do not want to go around randomly detaching
     # instances unless we know we are going to start/stop that instance right now
 
-    target = check.get_target(region, should_filter=False)
+    target = check.get_target(region, should_filter=True)
 
     elbs = describe_load_balancers(load_balancer_name, region)
     output = []
     for elb in elbs:
         if target.to_start:
-            check.set_instance_state('stop', target.ids_to_start)
+            check.set_instance_state('start', target.ids_to_start)
             elb_ids = set(elb.instance_ids).intersection(set(target.ids_to_start))
             if elb_ids:
                 ids = ' '.join(elb_ids)
                 detached = call('elb', 'deregister-instances-from-load-balancer',
-                                echo_=True,
                                 load_balancer_name=elb.name, instances=ids,
                                 region=region)
                 attached = call('elb', 'register-instances-with-load-balancer',
-                                echo_=True,
                                 load_balancer_name=elb.name, instances=ids,
                                 region=region)
                 output.extend([detached, attached])
@@ -43,8 +41,7 @@ def reattach(load_balancer_name, region=default_region):
             if elb_ids:
                 ids = ' '.join(elb_ids)
                 detached = call('elb', 'deregister-instances-from-load-balancer',
-                                echo_=True,
                                 load_balancer_name=elb.name, instances=ids,
                                 region=region)
                 output.append(detached)
-    return u' '.join(output)
+    return u' '.join(output or ['No instances to start or stop'])

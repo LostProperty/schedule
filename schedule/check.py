@@ -2,7 +2,7 @@ import json
 import datetime
 import itertools
 from schedule.window import (is_running, is_stopped,
-                             create_aws_instance_from_tag)
+                             create_aws_instance_if_scheduled)
 from schedule.start import call, join
 from schedule.start import region as default_region
 
@@ -27,7 +27,7 @@ def describe_instances_from_file(fname=None):
 
 def scheduled_instances(instances, creator=None):
     """Filter instances where tag.Key == 'Scheduled'"""
-    creator = creator or create_aws_instance_from_tag
+    creator = creator or create_aws_instance_if_scheduled
     reservations = instances['Reservations']
     instances_ = []
     for res in reservations:

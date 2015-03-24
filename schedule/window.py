@@ -52,7 +52,7 @@ class AWS_INSTANCE_STATES:
     STOPPED = [80, 'stopped']
 
 
-def create_aws_instance_from_tag(instance):
+def create_aws_instance_if_scheduled(instance):
     """Given the json version of an instance, create an AWSInstance wrapper"""
     schedule = get_scheduled_tag_value(instance)
     if not schedule:

@@ -31,7 +31,10 @@ def cmd(kind, subcommand, **kwargs):
 
 
 def call(kind, subcommand, **kwargs):
+    echo = kwargs.pop('echo_', False)
     _cmd = cmd(kind, subcommand, **kwargs)
+    if echo is True:
+        _cmd = u'echo {}'.format(_cmd)
     try:
         x = subprocess.check_output(_cmd, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as err:

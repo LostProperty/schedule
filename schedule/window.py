@@ -1,5 +1,4 @@
-import time
-import datetime
+from schedule import wrappers
 
 
 def get_scheduled_tag_value(instance):
@@ -8,22 +7,6 @@ def get_scheduled_tag_value(instance):
     except IndexError:
         retval = ''
     return retval
-
-
-def active_window(now, start, end):
-    return start < now < end
-
-
-def yy(s):
-    tm = time.strptime(s, '%H.%M')
-    # this works while we are only considering time and ignoring dates
-    now = datetime.datetime.utcnow()
-    return now.replace(second=0, microsecond=0, minute=tm.tm_min, hour=tm.tm_hour)
-
-
-def xx(schedule_str):
-    values = [x.split(':')[1] for x in schedule_str.split()]
-    return [yy(c) for c in values]
 
 
 def is_running(instance):
@@ -53,39 +36,10 @@ class AWS_INSTANCE_STATES:
 
 
 def create_aws_instance_if_scheduled(instance):
-    """Given the json version of an instance, create an AWSInstance wrapper"""
+    """Given the json version of an instance, create an AWSScheduledInstance wrapper"""
     schedule = get_scheduled_tag_value(instance)
     if not schedule:
         retval = None
     else:
-        retval = AWSInstance(instance, schedule)
+        retval = wrappers.AWSScheduledInstance(instance, schedule)
     return retval
-
-
-class AWSInstance(object):
-    def __init__(self, instance, schedule):
-        self.id = instance['InstanceId']
-        self.state = instance['State'].values()
-        self.on, self.off = xx(schedule)
-
-    def __contains__(self, other):
-        return active_window(other, self._on, self._off)
-
-    @property
-    def on(self):
-        return self._on.time()
-
-    @on.setter
-    def on(self, value):
-        self._on = value
-
-    @property
-    def off(self):
-        return self._off.time()
-
-    @off.setter
-    def off(self, value):
-        self._off = value
-
-    def __repr__(self):
-        return u'<{} - on:{!r} off:{!r}>'.format(self.id, self.on, self.off)

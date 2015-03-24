@@ -39,26 +39,47 @@ def scheduled_instances(instances, creator=None):
     return instances_
 
 
-def check(region=None, ids=None):
-    region = region or default_region
+def get_target(region, ids=None, should_filter=True):
+
+    class Target(object):
+        def __init__(self, to_start, to_stop):
+            if should_filter:
+                self.to_stop = [i for i in to_stop if not is_stopped(i)]
+                self.to_start = [i for i in to_start if not is_running(i)]
+            else:
+                self.to_stop = list(to_stop)
+                self.to_start = list(to_start)
+
+            self.ids_to_stop = [i.id for i in self.to_stop]
+            self.ids_to_start = [i.id for i in self.to_start]
+
     if ids is None:
         ids = list(scheduled_instances(describe_instances(region)))
     now = datetime.datetime.utcnow()
     pred = lambda win: now in win
-
     to_start, to_stop = partition(pred, ids)
-    to_stop = [i for i in to_stop if not is_stopped(i)]
-    to_start = [i for i in to_start if not is_running(i)]
+    return Target(to_start=to_start, to_stop=to_stop)
 
-    if to_stop:
-        instance_ids = ' '.join([i.id for i in to_stop])
-        stopped = call('ec2', 'stop-instances', region=region, instance_ids=instance_ids)
+
+def set_instance_state(action, instance_ids, region=default_region, **kwargs):
+    if action not in ['start', 'stop']:
+        raise TypeError('action must be either "start" or "stop"')
+    action = '{}-instances'.format(action)
+    instance_ids = ' '.join(instance_ids)
+    return call('ec2', action, region=region, instance_ids=instance_ids, **kwargs)
+
+
+def check(region=default_region, ids=None):
+
+    target = get_target(region, ids, should_filter=True)
+
+    if target.to_stop:
+        stopped = set_instance_state('stop', target.ids_to_stop)
     else:
         stopped = 'No instances to stop'
 
-    if to_start:
-        instance_ids = ' '.join([i.id for i in to_start])
-        started = call('ec2', 'start-instances', region=region, instance_ids=instance_ids)
+    if target.to_start:
+        started = set_instance_state('start', target.ids_to_start)
     else:
         started = 'No instances to start'
     return '{} | {}'.format(started, stopped)

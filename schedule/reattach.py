@@ -22,26 +22,24 @@ def reattach(load_balancer_name, region=default_region):
 
     elbs = describe_load_balancers(load_balancer_name, region)
     output = []
+
+    if target.to_start:
+        result = check.set_instance_state('start', target.ids_to_start)
+        output.append(result)
+
     for elb in elbs:
-        if target.to_start:
-            check.set_instance_state('start', target.ids_to_start)
-            elb_ids = set(elb.instance_ids).intersection(set(target.ids_to_start))
-            if elb_ids:
-                ids = ' '.join(elb_ids)
-                detached = call('elb', 'deregister-instances-from-load-balancer',
-                                load_balancer_name=elb.name, instances=ids,
-                                region=region)
-                attached = call('elb', 'register-instances-with-load-balancer',
-                                load_balancer_name=elb.name, instances=ids,
-                                region=region)
-                output.extend([detached, attached])
-        if target.to_stop:
-            check.set_instance_state('stop', target.ids_to_stop)
-            elb_ids = set(elb.instance_ids).intersection(set(target.ids_to_stop))
-            if elb_ids:
-                ids = ' '.join(elb_ids)
-                detached = call('elb', 'deregister-instances-from-load-balancer',
-                                load_balancer_name=elb.name, instances=ids,
-                                region=region)
-                output.append(detached)
+        elb_ids = set(elb.instance_ids).intersection(set(target.ids_to_start))
+        if elb_ids:
+            ids = ' '.join(elb_ids)
+            detached = call('elb', 'deregister-instances-from-load-balancer',
+                            load_balancer_name=elb.name, instances=ids,
+                            region=region)
+            attached = call('elb', 'register-instances-with-load-balancer',
+                            load_balancer_name=elb.name, instances=ids,
+                            region=region)
+            output.extend([detached, attached])
+
+    if target.to_stop:
+        result = check.set_instance_state('stop', target.ids_to_stop)
+        output.append(result)
     return u' '.join(output or ['No instances to start or stop'])

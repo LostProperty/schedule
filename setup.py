@@ -10,7 +10,7 @@ readme = open('README.rst').read()
 
 setup(
     name='schedule',
-    version='1.1.0',
+    version='1.1.1',
     description="Setup an AWS autoscaling group that creates and terminates a single instance on scheduled intervals",
     long_description=readme,
     author='Rob Berry',
